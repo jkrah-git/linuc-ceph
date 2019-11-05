@@ -1,0 +1,16 @@
+[ceph]
+name=Ceph packages for $basearch
+baseurl=https://download.ceph.com/rpm-luminous/el7/$basearch
+enabled=1
+priority=2
+gpgcheck=1
+gpgkey=file:///data/nfs/linux/ceph/ceph-release.asc
+
+[ceph-noarch]
+name=Ceph noarch packages
+baseurl=https://download.ceph.com/rpm-luminous/el7/noarch
+enabled=1
+priority=2
+gpgcheck=1
+gpgkey=file:///data/nfs/linux/ceph/ceph-release.asc
+

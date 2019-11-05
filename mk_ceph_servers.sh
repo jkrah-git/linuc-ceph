@@ -8,38 +8,40 @@ CHKNAME=dl380.shopsmart.au.nu
 CMD="$1"
 # [ -z "$CMD" ] && CMD="create"
 [ -z "$CMD" ] && abort "needs CMD[create,delete,snapshot,rollback]"
-
+	NAME="$2"
 ### CREATE ###
 if [ "$CMD" = "create" ]; then
 	prompt "create [$CEPH_ALL]"
-	for H in $CEPH_AUX; do
+	for H in $CEPH_ADMIN $CEPH_MON $CEPH_MGR $CEPH_CLI $CEPH_MDS; do
+		[ -z "$NAME" ] || [ "$H" = "$NAME" ] || continue
+		
 		set -x
 virt-install --connect qemu:///system --vnc --vnclisten=0.0.0.0 \
--r 16384 --vcpus=8 \
---disk size=30,format=qcow2 \
 --network=bridge=br0 \
---network=bridge=br5 \
 --location=nfs:cirrus:/data/centos7/  \
 --wait 0 \
---extra-args "inst.ks=http://kickstart.shopsmart.au.nu/cgi-bin/ks.cgi?TEMPLATE=centos7&HOSTNAME=$H" \
+--extra-args "inst.ks=http://kickstart.shopsmart.au.nu/cgi-bin/ks.cgi?TEMPLATE=ceph&HOSTNAME=$H" \
+-r 16384 --vcpus=8 \
+--disk size=30,format=qcow2 \
 --name $H
-
 		set +x
+#--network=bridge=br5 \
 	done
 	for H in $CEPH_OSD; do
+		[ -z "$NAME" ] || [ "$H" = "$NAME" ] || continue
 		set -x
 virt-install --connect qemu:///system --vnc --vnclisten=0.0.0.0 \
+--network=bridge=br0 \
+--location=nfs:cirrus:/data/centos7/  \
+--wait 0 \
+--extra-args "inst.ks=http://kickstart.shopsmart.au.nu/cgi-bin/ks.cgi?TEMPLATE=ceph&HOSTNAME=$H" \
 -r 16384 --vcpus=8 \
 --disk size=30,format=qcow2 \
 --disk size=30,format=qcow2 \
---network=bridge=br0 \
---network=bridge=br5 \
---location=nfs:cirrus:/data/centos7/  \
---wait 0 \
---extra-args "inst.ks=http://kickstart.shopsmart.au.nu/cgi-bin/ks.cgi?TEMPLATE=centos7&HOSTNAME=$H" \
 --name $H
 
 		set +x
+#--network=bridge=br5 \
 	done
 fi
 	
@@ -53,6 +55,18 @@ if [ "$CMD" = "delete" ]; then
 		set +x
 	done
 fi
+
+### list ###
+if [ "$CMD" = "list" ]; then
+	print "list [$CEPH_ALL]"
+	for H in $CEPH_ALL; do
+		set -x
+		virsh snapshot-list --tree  --domain ${H}
+		set +x
+	done
+fi
+	
+
 	
 SNAP="$2"
 [ -z "$SNAP" ] && SNAP=os-installed
@@ -68,12 +82,24 @@ if [ "$CMD" = "snapshot" ]; then
 fi
 	
 
+### SNAPDEL ###
+if [ "$CMD" = "snapdel" ]; then
+	prompt "snapdel [$SNAP]@[$CEPH_ALL]"
+	for H in $CEPH_ALL; do
+		set -x
+		virsh snapshot-delete --snapshotname  ${SNAP} --domain ${H}
+		set +x
+	done
+fi
+	
+
 ### ROLLBACK ###
 if [ "$CMD" = "rollback" ]; then
 	prompt "rollback [$SNAP]@[$CEPH_ALL]"
 	for H in $CEPH_ALL; do
 		set -x
 		virsh snapshot-revert --snapshotname ${SNAP} --domain ${H}
+		virsh start --domain ${H}
 		set +x
 	done
 fi
